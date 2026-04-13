@@ -31,6 +31,15 @@ export function replaceAllPlaceholders(
       continue;
     }
 
+    // Delete: remove the placeholder element (paragraph or table) entirely
+    if (content.shouldDelete) {
+      const parent = placeholder.parentBody;
+      if (parent.contains(placeholder.element)) {
+        parent.removeChild(placeholder.element);
+      }
+      continue;
+    }
+
     // Check for manual input override
     const manualValue = manualInputs?.get(placeholder.placeholderId);
 

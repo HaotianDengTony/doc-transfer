@@ -81,10 +81,19 @@ export const MAPPING_RULES: MappingRule[] = [
 
   // ===== Main Components =====
   {
+    // Standalone [xxx] paragraph before the reagent table — no content needed, delete it
+    placeholderId: 'components.reagentText',
+    templateDescription: '试剂组分 [xxx] text placeholder (deleted)',
+    sourceType: 'delete',
+  },
+  {
+    // Source Table 0 (reagent storage) col0 restructured into 2-column output table.
+    // Also incorporates Table 1 (calibrator) as the final row.
     placeholderId: 'components.reagentTable',
-    templateDescription: '试剂组分 table',
+    templateDescription: '试剂组分 table — restructured from source col0',
     sourceType: 'table',
     tableIndex: 0,
+    extractionRule: 'reagentTableRestructure',
   },
   {
     placeholderId: 'components.notProvided',
@@ -96,6 +105,14 @@ export const MAPPING_RULES: MappingRule[] = [
       ['程序', '需要但未提供的材料'],
     ],
     contentFilter: 'all',
+  },
+  {
+    // Template Table 1 (需要而未提供的材料 skeleton) — content already inserted by
+    // components.notProvided above (which copies the source section including its table).
+    // Delete the now-redundant template table.
+    placeholderId: 'components.notProvidedTable',
+    templateDescription: '需要而未提供的材料 template table (deleted)',
+    sourceType: 'delete',
   },
 
   // ===== Storage Conditions =====

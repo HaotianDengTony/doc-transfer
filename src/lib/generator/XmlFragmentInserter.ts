@@ -229,8 +229,25 @@ function normalizeInsertedParagraph(pElement: Element): void {
     // Remove indentation for non-list paragraphs — source indent is calibrated for
     // source-specific styles (e.g. BodyText, ListParagraph) that no longer apply.
     // List paragraphs keep their indent because numPr provides the correct list level.
+    //
+    // Exception: paragraphs that contain a FOREGROUND floating symbol (behindDoc=0,
+    // visible width > 10pt) also keep their indent. In these paragraphs the source
+    // indent was specifically sized to push text to the right of the symbol so they
+    // didn't overlap (e.g. 含有人源性物质。 had w:ind w:left="1574" / 78.7pt so
+    // text started at 126.7pt, safely past the 25.6pt symbol end at 116.3pt).
+    // Stripping the indent makes text start at 54pt (template left margin) and run
+    // straight into the symbol.  behindDoc=1 anchors are behind text and don't cause
+    // this problem; zero/tiny anchors (≤ 10pt wide) are invisible positioning markers.
     const hasNumPr = pPr.getElementsByTagNameNS(NS.w, 'numPr').length > 0;
-    if (!hasNumPr) {
+    const hasForegroundSymbol = Array.from(
+      pElement.getElementsByTagNameNS(NS.wp, 'anchor')
+    ).some(anchor => {
+      if (anchor.getAttribute('behindDoc') === '1') return false;
+      const extentEl = anchor.getElementsByTagNameNS(NS.wp, 'extent')[0];
+      const cx = extentEl ? parseInt(extentEl.getAttribute('cx') || '0', 10) : 0;
+      return cx > 127000; // > 10pt (1pt = 12700 EMU) — real symbol, not a marker
+    });
+    if (!hasNumPr && !hasForegroundSymbol) {
       removeDirectChild(pPr, NS.w, 'ind');
     }
   }
@@ -255,6 +272,31 @@ function normalizeInsertedParagraph(pElement: Element): void {
 }
 
 /**
+ * Returns true if the anchor element lives inside a <w:p> that also contains
+ * non-whitespace text runs. Such paragraphs are PDF→Word conversion artifacts
+ * where a floating shape was placed at an absolute page coordinate that happens
+ * to visually fall between text words. Converting these anchors to inline would
+ * insert them at Run [0] (before all text), which is the wrong visual position.
+ * Keeping them floating preserves the original page-relative position, which
+ * differs from the template by only ~6pt (source left-margin 48pt vs template 54pt).
+ */
+function anchorIsInMixedParagraph(anchor: Element): boolean {
+  // Walk up to the nearest enclosing <w:p>
+  let el: Element | null = anchor.parentElement;
+  while (el && !(el.localName === 'p' && el.namespaceURI === NS.w)) {
+    el = el.parentElement;
+  }
+  if (!el) return false;
+
+  // Mixed = paragraph has at least one <w:t> with non-whitespace content
+  const tElements = el.getElementsByTagNameNS(NS.w, 't');
+  for (let i = 0; i < tElements.length; i++) {
+    if ((tElements[i].textContent || '').trim() !== '') return true;
+  }
+  return false;
+}
+
+/**
  * Convert all <wp:anchor> (floating) images to <wp:inline> so they flow with
  * text instead of overlapping template content.
  *
@@ -262,10 +304,18 @@ function normalizeInsertedParagraph(pElement: Element): void {
  * layout. When inserted into the template (different margins/dimensions), the
  * anchor coordinates are meaningless and cause images to float over text.
  * Inline placement preserves the image dimensions while letting text wrap around.
+ *
+ * Exception: anchors in paragraphs that also contain text are left floating.
+ * These are PDF→Word artifacts where the shape was positioned mid-text by
+ * absolute page coordinates — converting them to inline would place them at
+ * the wrong text position (Run [0], before all text). See anchorIsInMixedParagraph.
  */
 function convertAnchorToInline(element: Element): void {
   const anchors = Array.from(element.getElementsByTagNameNS(NS.wp, 'anchor'));
   for (const anchor of anchors) {
+    // Skip anchors in paragraphs that also have text — keep them floating
+    if (anchorIsInMixedParagraph(anchor)) continue;
+
     const parent = anchor.parentElement;
     if (!parent) continue;
 

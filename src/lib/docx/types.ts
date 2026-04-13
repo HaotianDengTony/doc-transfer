@@ -133,7 +133,7 @@ export interface ParsedDocument {
 
 // ===== Mapping Layer =====
 
-export type SourceType = 'section' | 'productInfo' | 'table' | 'manual';
+export type SourceType = 'section' | 'productInfo' | 'table' | 'manual' | 'delete';
 export type ContentFilter = 'all' | 'bodyOnly';
 
 /** A single mapping rule */
@@ -165,6 +165,8 @@ export interface MappedContent {
   rawXmlFragments: string[];
   plainText: string;
   requiresManualInput: boolean;
+  /** If true, the placeholder element (paragraph or table) should be deleted from the output */
+  shouldDelete?: boolean;
 }
 
 /** Complete mapping result */
