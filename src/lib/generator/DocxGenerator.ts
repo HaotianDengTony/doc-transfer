@@ -132,7 +132,7 @@ export async function generateDocument(
  * Load the bundled NMPA template from the public directory.
  */
 async function loadTemplate(): Promise<DocxArchive> {
-  const response = await fetch('/合规说明书template-HBcT2 AIM.docx');
+  const response = await fetch(`${import.meta.env.BASE_URL}合规说明书template-HBcT2 AIM.docx`);
   if (!response.ok) {
     throw new Error(`Failed to load template: ${response.status} ${response.statusText}`);
   }
